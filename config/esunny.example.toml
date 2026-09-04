@@ -1,0 +1,11 @@
+[esunny]
+bridge_library = "build/native/Release/esunny_v10_bridge.dll"
+front_ip = "请向易盛或期货公司获取"
+front_port = 0
+account = ""
+app_id = ""
+log_path = "logs"
+
+# 保持 false，直到模拟环境验收完成。密码和授权码只通过环境变量提供。
+live_trading = false
+
