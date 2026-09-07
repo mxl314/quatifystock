@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class MarketTick:
     contract: str
-    timestamp: int
+    timestamp: str | int
     last_price: float
     last_volume: int
     bid_price: float
@@ -19,4 +19,3 @@ class MarketTick:
     lower_limit: float
     total_volume: int
     open_interest: int
-

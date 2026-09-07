@@ -86,7 +86,7 @@ public:
         std::ostringstream json;
         json.precision(15);
         json << "{\"contract\":" << quote(q->QContractNo)
-             << ",\"timestamp\":" << q->QDateTimeStamp
+             << ",\"timestamp\":" << quote(q->QDateTimeStamp)
              << ",\"last_price\":" << q->QLastPrice
              << ",\"last_volume\":" << q->QLastQty
              << ",\"bid_price\":" << q->QBidPrice1
@@ -136,4 +136,3 @@ int esq_query_contracts(void *handle) {
     return handle ? bridge(handle)->query_contracts() : -100;
 }
 }
-

@@ -111,7 +111,13 @@ public:
 
     void OnRspPwdMod(const DstarApiRspPwdModField*) override {}
     void OnRspSubmitInfo(const DstarApiRspSubmitInfoField*) override {}
-    void OnRspContract(const DstarApiContractField*) override {}
+    void OnRspContract(const DstarApiContractField *p) override {
+        if (!p) return;
+        std::ostringstream s;
+        s << "{\"contract_index\":" << p->ContractIndex
+          << ",\"contract\":" << quote(p->ContractNo) << "}";
+        emit("contract", s.str());
+    }
     void OnRspCmbContract(const DstarApiCmbContractField*) override {}
     void OnRspSeat(const DstarApiSeatField*) override {}
     void OnRspTrdFeeParam(const DstarApiTrdFeeParamField*) override {}
