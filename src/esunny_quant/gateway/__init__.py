@@ -1,5 +1,2 @@
-from .base import TradingGateway
-from .mock import MockGateway
-
-__all__ = ["TradingGateway", "MockGateway"]
-
+from quant_framework.gateway import *
+from quant_framework.gateway import __all__
