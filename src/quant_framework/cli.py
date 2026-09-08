@@ -4,12 +4,10 @@ import argparse
 import json
 import threading
 
-from .config import V10Config
-from .engine import TradingEngine
-from .events import EventBus
-from .gateway.mock import MockGateway
-from .gateway.v10_native import V10NativeGateway
-from .models import Event
+from .adapters.esunny import V10Config, V10NativeGateway
+from .adapters.mock import MockGateway
+from .core import Event, EventBus
+from .services import TradingEngine
 
 
 def _parser() -> argparse.ArgumentParser:

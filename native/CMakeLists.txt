@@ -10,9 +10,9 @@ set(CTP_MD_SDK "" CACHE PATH "Directory containing ThostFtdcMdApi.h and thostmdu
 set(CTP_TD_SDK "" CACHE PATH "Directory containing ThostFtdcTraderApi.h and thosttraderapi_se.lib")
 
 if(ESUNNY_TRADE_SDK AND ESUNNY_QUOTE_SDK)
-  add_library(esunny_v10_bridge SHARED esunny_v10_bridge.cpp)
+  add_library(esunny_v10_bridge SHARED esunny/esunny_v10_bridge.cpp)
   target_include_directories(esunny_v10_bridge PRIVATE "${ESUNNY_TRADE_SDK}/include")
-  add_library(esunny_v10_quote_bridge SHARED esunny_v10_quote_bridge.cpp)
+  add_library(esunny_v10_quote_bridge SHARED esunny/esunny_v10_quote_bridge.cpp)
   target_include_directories(esunny_v10_quote_bridge PRIVATE "${ESUNNY_QUOTE_SDK}/include")
   if(WIN32)
     target_link_libraries(esunny_v10_bridge PRIVATE "${ESUNNY_TRADE_SDK}/lib/win/x64/libdstartradeapi.lib")

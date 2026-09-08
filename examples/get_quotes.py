@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import threading
 
-from esunny_quant.events import EventBus
-from esunny_quant.gateway.v10_quote import V10QuoteGateway
-from esunny_quant.quote_client import QuoteClient
-from esunny_quant.quote_config import QuoteConfig
+from quant_framework.core import EventBus
+from quant_framework.adapters.esunny import V10QuoteGateway
+from quant_framework.runtime import QuoteClient
+from quant_framework.adapters.esunny import QuoteConfig
 
 
 def main() -> None:

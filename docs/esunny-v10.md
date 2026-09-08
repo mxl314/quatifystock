@@ -2,7 +2,7 @@
 
 ## 已核对的官方版本
 
-本框架依据易盛官网在 2026-09-04 提供的开发包接口设计：交易 API 1.0.1.19、行情 API 1.0.0.7。官方包只有 C++ 头文件及 Windows/Linux 动态库，没有 Python binding，所以项目使用 `native/esunny_v10_bridge.cpp` 将 C++ 虚接口转换成稳定 C ABI，再由 Python `ctypes` 调用。
+本框架依据易盛官网在 2026-09-04 提供的开发包接口设计：交易 API 1.0.1.19、行情 API 1.0.0.7。官方包只有 C++ 头文件及 Windows/Linux 动态库，没有 Python binding，所以项目使用 `native/esunny/esunny_v10_bridge.cpp` 将 C++ 虚接口转换成稳定 C ABI，再由 Python `ctypes` 调用。
 
 官方页面：<https://www.esunny.com.cn/market/info/155>
 
@@ -45,8 +45,8 @@ $env:ESUNNY_LICENSE_NO='软件授权码'
 先保持 `live_trading = false`，验证登录、Ready、资金、持仓：
 
 ```powershell
-esunny-quant --gateway v10 --config config/esunny.toml funds
-esunny-quant --gateway v10 --config config/esunny.toml positions
+quant-framework --gateway v10 --config config/esunny.toml funds
+quant-framework --gateway v10 --config config/esunny.toml positions
 ```
 
 确认模拟环境后才打开下单闸门：
@@ -54,7 +54,7 @@ esunny-quant --gateway v10 --config config/esunny.toml positions
 ```powershell
 $env:ESUNNY_LIVE_CONFIRM='I_UNDERSTAND'
 # 同时把 config/esunny.toml 的 live_trading 改为 true
-esunny-quant --gateway v10 --config config/esunny.toml buy `
+quant-framework --gateway v10 --config config/esunny.toml buy `
   --contract '交易柜台返回的完整合约号' --contract-index 交易柜台返回的索引 --price 5000 --volume 1
 ```
 

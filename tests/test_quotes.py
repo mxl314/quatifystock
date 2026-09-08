@@ -1,8 +1,8 @@
 import unittest
 
-from esunny_quant.events import EventBus
-from esunny_quant.gateway.mock_quote import MockQuoteGateway
-from esunny_quant.quote_client import QuoteClient
+from quant_framework.core import EventBus
+from quant_framework.adapters.mock import MockQuoteGateway
+from quant_framework.runtime import QuoteClient
 
 
 class QuoteClientTests(unittest.TestCase):

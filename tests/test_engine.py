@@ -1,8 +1,9 @@
 import unittest
 
-from esunny_quant import OrderRequest, OrderStatus, Offset, Side, TradingEngine
-from esunny_quant.gateway import MockGateway
-from esunny_quant.risk import RiskLimits, RiskManager, RiskRejected
+from quant_framework.core import Offset, OrderRequest, OrderStatus, Side
+from quant_framework.services import TradingEngine
+from quant_framework.adapters.mock import MockGateway
+from quant_framework.services import RiskLimits, RiskManager, RiskRejected
 
 
 class TradingEngineTests(unittest.TestCase):

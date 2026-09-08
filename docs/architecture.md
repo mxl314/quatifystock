@@ -37,7 +37,7 @@ strategy  ->  services  ->  core  <-  adapters
 - `LiveRuntime`：组装实时行情、交易、中间件和策略。
 - `ReplayRuntime`：将历史 Tick 注入同一套中间件和策略。
 
-旧的 `esunny_quant.gateway.*`、`esunny_quant.models` 等导入路径仍然可用，但新代码应优先从上述分层包导入。
+项目统一使用 `quant_framework.*` 导入路径；柜台实现分别位于 `adapters.esunny` 和 `adapters.ctp`。
 
 ## K线周期
 

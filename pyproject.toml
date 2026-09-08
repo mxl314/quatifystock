@@ -11,7 +11,6 @@ dependencies = []
 
 [project.scripts]
 quant-framework = "quant_framework.cli:main"
-esunny-quant = "quant_framework.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

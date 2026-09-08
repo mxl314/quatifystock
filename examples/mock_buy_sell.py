@@ -1,5 +1,6 @@
-from esunny_quant import OrderStatus, TradingEngine
-from esunny_quant.gateway import MockGateway
+from quant_framework.core import OrderStatus
+from quant_framework.services import TradingEngine
+from quant_framework.adapters.mock import MockGateway
 
 
 engine = TradingEngine(lambda sink: MockGateway(sink, auto_fill=True))
