@@ -11,4 +11,4 @@ dist/
 *.so
 logs/
 .env
-
+v*_trader.zip

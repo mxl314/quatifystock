@@ -1,0 +1,14 @@
+[ctp]
+md_bridge_library = "build/native/ctp_md_bridge.dll"
+td_bridge_library = "build/native/ctp_td_bridge.dll"
+
+# SimNow 第一套环境；盘中可用，具体时段以 SimNow 公告为准。
+md_front = "tcp://180.168.146.187:10211"
+td_front = "tcp://180.168.146.187:10201"
+broker_id = "9999"
+app_id = "simnow_client_test"
+auth_code = "0000000000000000"
+flow_path = "runtime/ctp"
+
+# 即使是模拟环境，默认也禁止程序发单。
+live_trading = false
