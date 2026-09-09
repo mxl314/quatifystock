@@ -208,4 +208,3 @@ int es_cancel_order(void *h, unsigned long long order_id, const char *system_no,
 int es_query_funds(void *h) { return h ? as_bridge(h)->funds() : -100; }
 int es_query_positions(void *h) { return h ? as_bridge(h)->positions() : -100; }
 }
-

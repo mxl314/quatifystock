@@ -189,13 +189,14 @@ public:
     void OnRspQryInvestorPosition(CThostFtdcInvestorPositionField* p, CThostFtdcRspInfoField* info,
                                   int request_id, bool last) override {
         if (failed(info)) { emit_error("td.query_positions", info, request_id); return; }
-        if (!p) return;
+        if (!p) { if (last) emit("position.end", "{}"); return; }
         std::ostringstream out; out << std::setprecision(15)
             << "{\"instrument\":\"" << esc(p->InstrumentID) << "\",\"direction\":\"" << p->PosiDirection
             << "\",\"position\":" << p->Position << ",\"today_position\":" << p->TodayPosition
             << ",\"yd_position\":" << p->YdPosition << ",\"position_cost\":" << p->PositionCost
             << ",\"margin\":" << p->UseMargin << ",\"last\":" << (last ? "true" : "false") << "}";
         emit("position", out.str());
+        if (last) emit("position.end", "{}");
     }
     void OnRspQryInstrument(CThostFtdcInstrumentField* i, CThostFtdcRspInfoField* info,
                             int request_id, bool last) override {

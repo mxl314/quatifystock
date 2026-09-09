@@ -45,6 +45,19 @@ $env:CTP_PASSWORD="你的SimNow密码"
 - `SHFE|F|RB|2701` 对应 CTP `rb2701`
 - `CFFEX|F|IF|2612` 对应 CTP `IF2612`
 
+## 命令行接入
+
+复制配置并通过环境变量提供 SimNow 凭据：
+
+```powershell
+Copy-Item config\ctp.example.toml config\ctp.toml
+$env:CTP_USER_ID="你的SimNow账号"
+$env:CTP_PASSWORD="你的SimNow密码"
+quant-framework --gateway ctp --config config\ctp.toml funds
+quant-framework --gateway ctp --config config\ctp.toml positions
+```
+
+未指定 `--config` 时，CTP 默认读取 `config/ctp.toml`。
 ## 交易保护
 
 发单和撤单默认锁定。只有配置 `live_trading = true`，并设置下面的明确确认变量后才会调用 CTP 报单接口：

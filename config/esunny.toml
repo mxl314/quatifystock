@@ -1,0 +1,10 @@
+[esunny]
+bridge_library = "build/native/esunny_v10_bridge.dll"
+front_ip = "123.161.206.213"
+front_port = 6668
+account = ""
+app_id = "Demo_TestCollect"
+log_path = "logs"
+
+# 易盛官方仿真环境；发单闸门保持关闭，待登录、资金和合约参数核验完成后再临时开启。
+live_trading = false
