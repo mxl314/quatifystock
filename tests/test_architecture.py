@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 
 from quant_framework.adapters.esunny import EsunnyAdapter
+from quant_framework.adapters.esunny.trading import V10NativeGateway
 from quant_framework.adapters.mock import MockGateway
 from quant_framework.core import Bar, Event, EventBus, Tick
 from quant_framework.services import BarBuilder, TimelineService, TradingEngine
@@ -55,15 +56,41 @@ class StrategyTests(unittest.TestCase):
         strategies = StrategyEngine(bus, trading)
         recorder = Recorder()
         strategies.add("recorder", recorder)
+        strategies.start()
         bar = Bar("TEST", 60, __import__("datetime").datetime(2026, 1, 1),
                   __import__("datetime").datetime(2026, 1, 1, 0, 1), 1, 2, 1, 2)
         bus.publish(Event("bar", bar))
         self.assertEqual(recorder.received, [bar])
 
+    def test_strategy_does_not_receive_initialization_events_before_start(self):
+        class Recorder(Strategy):
+            def __init__(self):
+                super().__init__()
+                self.ticks = []
+
+            def on_tick(self, tick):
+                self.ticks.append(tick)
+
+        bus = EventBus()
+        trading = TradingEngine(lambda sink: MockGateway(sink), event_bus=bus)
+        strategies = StrategyEngine(bus, trading)
+        recorder = Recorder()
+        strategies.add("recorder", recorder)
+        bus.publish(Event("tick", Tick("TEST", 1)))
+        self.assertEqual(recorder.ticks, [])
+        strategies.start()
+        bus.publish(Event("tick", Tick("TEST", 2)))
+        self.assertEqual([tick.last_price for tick in recorder.ticks], [2])
+
     def test_esunny_capabilities_are_declared(self):
         self.assertTrue(EsunnyAdapter.capabilities.market_data)
         self.assertTrue(EsunnyAdapter.capabilities.trading)
         self.assertFalse(EsunnyAdapter.capabilities.native_condition_order)
+
+    def test_esunny_maps_canonical_future_to_trading_contract(self):
+        self.assertEqual(
+            V10NativeGateway._trading_contract("DCE|F|P|2701"), "P2701"
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,5 @@
+[quote]
+bridge_library = "build/native/esunny_v10_quote_bridge.dll"
+front_ip = "123.161.206.213"
+front_port = 6161
+log_path = "logs/quote"

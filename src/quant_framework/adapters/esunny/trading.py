@@ -18,6 +18,7 @@ class V10NativeGateway(TradingGateway):
     def __init__(self, event_sink: EventSink, config: V10Config) -> None:
         super().__init__(event_sink)
         self.config = config
+        self._contract_indices: dict[str, int] = {}
         library_path = config.bridge_library.resolve()
         self._dll_dir_handle = (
             os.add_dll_directory(str(library_path.parent))
@@ -105,11 +106,15 @@ class V10NativeGateway(TradingGateway):
 
     def send_order(self, request_id: int, order: OrderRequest) -> None:
         self._assert_live()
+        contract = self._trading_contract(order.contract)
+        contract_index = order.contract_index or self._contract_indices.get(contract, 0)
+        if contract_index <= 0:
+            raise RuntimeError(f"易盛合约 {contract} 尚未取得有效合约索引")
         reference = order.reference if order.reference is not None else request_id
         rc = self._dll.es_insert_order(
             self._handle,
-            self._b(order.contract),
-            order.contract_index,
+            self._b(contract),
+            contract_index,
             order.side.value.encode(),
             order.offset.value.encode(),
             order.hedge.value.encode(),
@@ -146,6 +151,11 @@ class V10NativeGateway(TradingGateway):
         try:
             kind = event_type.decode("ascii")
             data = json.loads(payload.decode("gb18030")) if payload else None
+            if kind == "contract" and isinstance(data, dict):
+                contract = str(data.get("contract", ""))
+                index = int(data.get("contract_index", 0))
+                if contract and index > 0:
+                    self._contract_indices[contract.upper()] = index
             self.emit(Event(kind, data))
         except Exception as exc:
             self.emit(Event("gateway.error", {"message": f"解析原生回调失败: {exc}"}))
@@ -154,3 +164,10 @@ class V10NativeGateway(TradingGateway):
     def _check(rc: int, action: str) -> None:
         if rc != 0:
             raise RuntimeError(f"易盛 V10 {action}失败，返回码 {rc}")
+
+    @staticmethod
+    def _trading_contract(contract: str) -> str:
+        parts = contract.strip().split("|")
+        if len(parts) == 4 and parts[1].upper() == "F":
+            return (parts[2] + parts[3]).upper()
+        return contract.strip().upper()

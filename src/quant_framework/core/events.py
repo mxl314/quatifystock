@@ -35,13 +35,14 @@ class EventBus:
     def stop(self) -> None:
         if not self._running.is_set():
             return
-        self._running.clear()
         self._queue.put(None)
         if self._thread:
             self._thread.join(timeout=5)
+            self._thread = None
+        self._running.clear()
 
     def _run(self) -> None:
-        while self._running.is_set():
+        while True:
             event = self._queue.get()
             if event is None:
                 break
@@ -53,4 +54,3 @@ class EventBus:
                 handler(event)
             except Exception:
                 self._log.exception("事件处理失败: %s", event.type)
-

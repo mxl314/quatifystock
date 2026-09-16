@@ -2,7 +2,7 @@
 bridge_library = "build/native/esunny_v10_bridge.dll"
 front_ip = "123.161.206.213"
 front_port = 6668
-account = ""
+account = "Q1062383955"
 app_id = "Demo_TestCollect"
 log_path = "logs"
 

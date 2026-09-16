@@ -11,6 +11,7 @@ class StrategyEngine:
         self.events = event_bus
         self.trading = trading_engine
         self.strategies: dict[str, Strategy] = {}
+        self._running = False
         for event_type in ("tick", "bar", "timeline", "order", "trade"):
             event_bus.subscribe(event_type, self._dispatch)
 
@@ -21,14 +22,18 @@ class StrategyEngine:
         self.strategies[name] = strategy
 
     def start(self) -> None:
+        self._running = True
         for strategy in tuple(self.strategies.values()):
             strategy.on_start()
 
     def stop(self) -> None:
+        self._running = False
         for strategy in tuple(self.strategies.values()):
             strategy.on_stop()
 
     def _dispatch(self, event: Event) -> None:
+        if not self._running:
+            return
         method = f"on_{event.type}"
         for strategy in tuple(self.strategies.values()):
             getattr(strategy, method)(event.data)

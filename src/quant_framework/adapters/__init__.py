@@ -1,4 +1,4 @@
+from .ctp import CtpAdapter
 from .esunny import EsunnyAdapter
-from .kuaiqi import KuaiqiAdapter
 
-__all__ = ["EsunnyAdapter", "KuaiqiAdapter"]
+__all__ = ["CtpAdapter", "EsunnyAdapter"]

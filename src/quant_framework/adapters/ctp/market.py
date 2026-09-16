@@ -69,6 +69,10 @@ class CtpMarketGateway(MarketDataGateway):
         try:
             kind = event_type.decode("ascii")
             data = json.loads(payload.decode("gb18030")) if payload else {}
+            if kind == "gateway.ready":
+                kind = "quote.ready"
+            elif kind == "gateway.error":
+                kind = "quote.error"
             if kind == "tick":
                 data["contract"] = to_canonical(data.pop("instrument"), data.pop("exchange"))
                 data = MarketTick(**data)

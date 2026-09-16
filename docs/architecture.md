@@ -4,7 +4,7 @@
 
 ```text
 strategy  ->  services  ->  core  <-  adapters
-                 ^                    易盛 / 快期 / Mock
+                 ^                    易盛 / CTP / Mock
                  |
               runtime
 ```
@@ -16,10 +16,10 @@ strategy  ->  services  ->  core  <-  adapters
 ## adapters
 
 - `adapters.esunny`：易盛 V10 行情、交易、配置和组合模块。
+- `adapters.ctp`：标准 CTP 行情、交易、配置和组合模块。
 - `adapters.mock`：测试与回放使用的行情、交易实现。
-- `adapters.kuaiqi`：快期预留入口，确定具体 SDK 后按统一接口实现。
 
-易盛特有的合约索引、字符枚举、DLL 和 `ctypes` 调用不能泄漏到策略层。
+易盛和 CTP 特有的合约编号、字符枚举、DLL 和 `ctypes` 调用不能泄漏到策略层。
 
 ## services
 

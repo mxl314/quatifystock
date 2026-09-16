@@ -39,3 +39,29 @@ connect -> quote.ready -> subscribe -> tick -> tick ...
 
 `tick` 的数据类型是 `MarketTick`，包括最新价、买卖一档、成交量、持仓量、开高低、昨结算和涨跌停价。
 
+## 策略运行时保存 Tick
+
+给 `LiveRuntime` 传入同一个长期 SQLite 数据库即可。存储服务订阅事件总线的 `tick` 事件，所以行情会同时进入 K 线、分时、策略和数据库，策略类不需要调用存储接口：
+
+```python
+from quant_framework import LiveRuntime, SQLiteTickStore
+
+store = SQLiteTickStore(
+    "data/market_ticks.sqlite3",
+    trading_day="2026-09-16",
+    batch_size=500,
+)
+
+runtime = LiveRuntime(
+    market_factory=market_factory,
+    trading_factory=trading_factory,
+    bar_intervals=(60, 300),
+    tick_store=store,
+    tick_flush_seconds=60,
+)
+runtime.add_strategy("strategy", strategy)
+runtime.connect()
+runtime.subscribe("DCE|F|P|2701")
+```
+
+每个 Tick 到达后先追加到内存批次；累计 500 条时立即提交，否则后台每 60 秒提交。`runtime.close()` 会先停止行情、排空已进入事件队列的数据，再强制提交剩余 Tick。正常关闭不丢数据；进程或机器异常终止时，最多可能丢失尚未提交的一个批次。

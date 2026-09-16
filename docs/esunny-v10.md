@@ -38,7 +38,7 @@ $env:ESUNNY_APP_ID='应用程序号'
 $env:ESUNNY_LICENSE_NO='软件授权码'
 ```
 
-敏感项只从环境变量读取。`front_ip/front_port` 必须使用期货公司或开发包提供的环境地址。
+默认可从环境变量或 Windows DPAPI 本机凭据读取敏感项。仅针对本机模拟账号，也可在被 Git 忽略的 `config/esunny.local.toml` 中放置 `[esunny]` 段的 `password`，这样无需每次设置密码环境变量；这是明文文件，勿复制到实盘配置或提交到仓库。`front_ip/front_port` 必须使用期货公司或开发包提供的环境地址。
 
 ## 4. 验证与下单
 
@@ -69,3 +69,19 @@ quant-framework --gateway v10 --config config/esunny.toml buy `
 - 断线回调只更新状态；重连应由上层在回调之外调度，避免在 SDK 回调中阻塞。
 - 当前桥接层覆盖登录、报单、撤单、资金、持仓、委托与成交回报。行情接口可按同样模式独立进程接入，生产环境通常也建议行情与交易进程隔离。
 
+## 6. P2701 模拟盘 5 分钟底拐点一次性买入
+
+Windows 用户可在自己的终端交互式设置本机凭据（密码不会显示在命令行，凭据由当前 Windows 用户的 DPAPI 加密，保存在 `%APPDATA%\quatifystock\esunny-sim.dpapi`，不写入仓库）：
+
+```powershell
+python -m quant_framework.adapters.esunny.credentials set --account Q1062383955
+```
+
+设置时需要模拟账号密码和易盛交易 API 的 LicenseNo。`config/esunny.toml` 中的 AppId、交易前置、端口也必须与该模拟环境一致。设置完成并确认只连接模拟前置后，使用：
+
+```powershell
+$env:ESUNNY_LIVE_CONFIRM='I_UNDERSTAND'
+python operations/esunny/esunny_sim_buy_five_minute_pivot.py --execute
+```
+
+该脚本监测行情合约 `DCE|F|P|2701`，只使用订阅后生成的 K 线；首根可能不完整，会丢弃。后续每根 5 分钟 K 线至少需在开头和末尾一分钟有 Tick，且三根连续：中间 K 线低点同时低于前后 K 线，后一根收盘价高于中间 K 线高点，才构成买入信号。脚本在信号后复核新鲜行情、交易登录账号、合约索引和资金回报，只提交一次 `P2701` 买开一手限价单。默认最多监测 30 分钟；未出现信号则不下单，委托回报不明时不自动重试。`submitted` 只表示发单请求已发送，不代表成交；须以柜台委托/成交回报核实最终状态。

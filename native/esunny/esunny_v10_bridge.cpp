@@ -52,11 +52,6 @@ public:
                     std::min(static_cast<size_t>(length), sizeof(submit.SystemInfo)));
         api_->SetSubmitInfo(&submit);
 
-        DstarApiInitQryInfoField query = {};
-        query.ContractInitQryFlag = 'Y'; query.SeatInitQryFlag = 'Y';
-        query.PrePositionInitQryFlag = 'Y'; query.OrderInitQryFlag = 'Y';
-        query.MatchInitQryFlag = 'Y'; query.TrdExchangeStateInitQryFlag = 'Y';
-        api_->SetInitQryInfo(&query);
         return api_->Init();
     }
 
