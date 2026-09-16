@@ -10,5 +10,6 @@ dist/
 *.dll
 *.so
 logs/
+reports/
 .env
 v*_trader.zip

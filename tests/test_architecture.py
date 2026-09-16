@@ -9,6 +9,22 @@ from quant_framework.services import BarBuilder, TimelineService, TradingEngine
 from quant_framework.strategy import Strategy, StrategyEngine
 
 
+class EventBusTests(unittest.TestCase):
+    def test_stop_drains_events_created_while_draining(self):
+        bus = EventBus()
+        received = []
+
+        def on_source(_event):
+            bus.publish(Event("derived", 2))
+
+        bus.subscribe("source", on_source)
+        bus.subscribe("derived", lambda event: received.append(event.data))
+        bus.start()
+        bus.publish(Event("source", 1))
+        bus.stop()
+        self.assertEqual(received, [2])
+
+
 class BarBuilderTests(unittest.TestCase):
     def test_tick_builds_one_minute_bar(self):
         builder = BarBuilder(60)

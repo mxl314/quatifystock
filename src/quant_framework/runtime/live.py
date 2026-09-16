@@ -7,9 +7,10 @@ from ..core.events import EventBus
 from ..core.interfaces import EventSink, MarketDataGateway, TradingGateway
 from ..services.bar_builder import BarService
 from ..services.execution import TradingEngine
+from ..services.order_storage import OrderStorageService
 from ..services.timeline import TimelineService
 from ..services.tick_storage import TickStorageService
-from ..storage import SQLiteTickStore
+from ..storage import SQLiteOrderStore, SQLiteTickStore
 from ..strategy.base import Strategy
 from ..strategy.engine import StrategyEngine
 from .market_client import QuoteClient
@@ -29,6 +30,10 @@ class LiveRuntime:
         bar_intervals: tuple[int, ...] = (60,),
         tick_store: SQLiteTickStore | None = None,
         tick_flush_seconds: float = 60,
+        order_store: SQLiteOrderStore | None = None,
+        gateway_name: str = "",
+        account: str = "",
+        trading_day: str = "",
     ) -> None:
         self.events = EventBus()
         self._trading_ready = threading.Event()
@@ -45,6 +50,13 @@ class LiveRuntime:
             TickStorageService(self.events, tick_store, flush_seconds=tick_flush_seconds)
             if tick_store is not None else None
         )
+        self.order_storage = (
+            OrderStorageService(
+                self.events, order_store, gateway=gateway_name,
+                account=account, trading_day=trading_day,
+            )
+            if order_store is not None else None
+        )
         self.strategies = StrategyEngine(self.events, self.trading)
 
     def add_strategy(self, name: str, strategy: Strategy) -> None:
@@ -54,6 +66,8 @@ class LiveRuntime:
         self.events.start()
         if self.tick_storage:
             self.tick_storage.start()
+        if self.order_storage:
+            self.order_storage.start()
         self.trading.connect()
         if not self._trading_ready.wait(timeout):
             raise TimeoutError("等待交易 API Ready 超时")
@@ -74,8 +88,12 @@ class LiveRuntime:
         self.trading.gateway.close()
         self.bars.flush()
         self.events.stop()
-        if self.tick_storage:
-            self.tick_storage.close()
+        try:
+            if self.tick_storage:
+                self.tick_storage.close()
+        finally:
+            if self.order_storage:
+                self.order_storage.close()
 
     def _on_gateway_error(self, event) -> None:
         if not self._trading_ready.is_set():

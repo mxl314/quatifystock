@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>期货K线</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f7f8fa; --panel:#fff; --text:#18212f; --muted:#687386; --grid:#dce1e8; --up:#d83b3b; --down:#159461; --buy:#e04646; --sell:#16865c; --pivot-bottom:#c2185b; --pivot-top:#2e7d32; --cross:#7b8798; }
+    @media (prefers-color-scheme:dark) { :root { --bg:#12161d; --panel:#181e27; --text:#e9edf3; --muted:#98a3b3; --grid:#303846; --up:#ef6262; --down:#35b77e; --buy:#ff7777; --sell:#49cf95; --pivot-bottom:#ff5c93; --pivot-top:#8bdc65; --cross:#8491a3; } }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:18px; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+    header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+    h1 { margin:0; font-size:20px; font-weight:600; }
+    .meta,.legend { color:var(--muted); }
+    .legend { display:flex; gap:14px; flex-wrap:wrap; }
+    .legend span::before { content:""; display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:0; background:currentColor; }
+    .legend .up,.legend .buy { color:var(--buy); }
+    .legend .down,.legend .sell { color:var(--sell); }
+    .legend .pivot-bottom { color:var(--pivot-bottom); }
+    .legend .pivot-top { color:var(--pivot-top); }
+    .legend .pivot-bottom::before { transform:rotate(45deg); border-radius:1px; }
+    .legend .pivot-top::before { width:8px; height:8px; background:transparent; border:2px solid currentColor; transform:rotate(45deg); }
+    main { position:relative; min-height:520px; height:calc(100vh - 115px); background:var(--panel); border:1px solid var(--grid); }
+    canvas { width:100%; height:100%; display:block; cursor:crosshair; touch-action:none; }
+    #tooltip { position:absolute; display:none; pointer-events:none; z-index:2; padding:7px 9px; background:color-mix(in srgb,var(--panel) 94%,transparent); border:1px solid var(--grid); color:var(--text); white-space:nowrap; font-variant-numeric:tabular-nums; }
+    #empty { position:absolute; inset:0; display:none; place-items:center; color:var(--muted); }
+    @media (max-width:600px) { body { padding:8px; } main { min-height:440px; height:calc(100vh - 135px); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1 id="title">期货K线</h1><div class="meta" id="meta"></div></div>
+    <div class="legend"><span class="up">上涨/买入</span><span class="down">下跌/卖出</span><span class="pivot-bottom">底部拐点</span><span class="pivot-top">顶部拐点</span><span>滚轮缩放 · 拖动平移</span></div>
+  </header>
+  <main id="chart-wrap">
+    <canvas id="chart" aria-label="K线、成交量、策略拐点和买卖位置图"></canvas>
+    <div id="tooltip" role="status"></div><div id="empty">当前条件没有K线数据</div>
+  </main>
+  <script>
+  (() => {
+    "use strict";
+    const initialData = __CHART_DATA__;
+    const apiUrl = __CHART_API_URL__;
+    const canvas = document.getElementById("chart"), wrap = document.getElementById("chart-wrap");
+    const tooltip = document.getElementById("tooltip"), empty = document.getElementById("empty");
+    const ctx = canvas.getContext("2d");
+    let data = initialData, visible = 120, end = data.bars.length, hoverIndex = -1, dragging = false, dragX = 0, dragEnd = 0;
+    const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const pad = {left:68,right:18,top:18,bottom:32};
+    const fmt = (v, digits=0) => Number(v).toLocaleString("zh-CN", {minimumFractionDigits:digits,maximumFractionDigits:digits});
+    const shortTime = value => { const s=String(value); return s.length>=16 ? s.slice(5,16).replace("T"," ") : s; };
+    function setData(next) {
+      const wasLatest = end >= data.bars.length;
+      data = next; if (wasLatest) end = data.bars.length; else end = Math.min(end, data.bars.length);
+      document.getElementById("title").textContent = `${data.contract} · ${data.interval_seconds/60}分钟K线`;
+      data.trades = data.trades || []; data.pivots = data.pivots || [];
+      document.getElementById("meta").textContent = `${data.trading_day} · ${data.bars.length} 根K线 · ${data.pivots.length} 个拐点 · ${data.trades.length} 笔成交`;
+      draw();
+    }
+    function dimensions() {
+      const dpr=window.devicePixelRatio||1, rect=canvas.getBoundingClientRect();
+      if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}
+      ctx.setTransform(dpr,0,0,dpr,0,0); return {w:rect.width,h:rect.height};
+    }
+    function draw() {
+      const {w,h}=dimensions(), colors={bg:css("--panel"),text:css("--text"),muted:css("--muted"),grid:css("--grid"),up:css("--up"),down:css("--down"),buy:css("--buy"),sell:css("--sell"),pivotBottom:css("--pivot-bottom"),pivotTop:css("--pivot-top"),cross:css("--cross")};
+      ctx.clearRect(0,0,w,h); ctx.fillStyle=colors.bg; ctx.fillRect(0,0,w,h);
+      empty.style.display=data.bars.length?"none":"grid"; if(!data.bars.length)return;
+      visible=Math.max(20,Math.min(500,visible)); end=Math.max(1,Math.min(data.bars.length,end));
+      const start=Math.max(0,end-visible), bars=data.bars.slice(start,end), plotW=w-pad.left-pad.right, priceBottom=Math.round(h*.76), priceH=priceBottom-pad.top, volumeTop=priceBottom+12, volumeBottom=h-pad.bottom, volumeH=Math.max(20,volumeBottom-volumeTop);
+      let low=Math.min(...bars.map(b=>b.low)), high=Math.max(...bars.map(b=>b.high)); const margin=Math.max((high-low)*.06,high*.0005,1); low-=margin;high+=margin;
+      const maxVol=Math.max(1,...bars.map(b=>b.volume)); const x=i=>pad.left+(i+.5)*plotW/bars.length, y=p=>pad.top+(high-p)*priceH/(high-low), vy=v=>volumeBottom-v*volumeH/maxVol;
+      ctx.font="12px system-ui"; ctx.lineWidth=1; ctx.strokeStyle=colors.grid; ctx.fillStyle=colors.muted; ctx.textAlign="right"; ctx.textBaseline="middle";
+      for(let i=0;i<=5;i++){const yy=pad.top+i*priceH/5,price=high-i*(high-low)/5;ctx.beginPath();ctx.moveTo(pad.left,yy);ctx.lineTo(w-pad.right,yy);ctx.stroke();ctx.fillText(fmt(price,price<100?2:0),pad.left-7,yy);}
+      ctx.textAlign="center"; ctx.textBaseline="top"; const tickStep=Math.max(1,Math.ceil(bars.length/6));
+      bars.forEach((b,i)=>{const xx=x(i),slot=plotW/bars.length,body=Math.max(1,slot*.62),color=b.close>=b.open?colors.up:colors.down,yo=y(b.open),yc=y(b.close);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(xx,y(b.high));ctx.lineTo(xx,y(b.low));ctx.stroke();ctx.fillRect(xx-body/2,Math.min(yo,yc),body,Math.max(1,Math.abs(yc-yo)));ctx.globalAlpha=.48;ctx.fillRect(xx-body/2,vy(b.volume),body,volumeBottom-vy(b.volume));ctx.globalAlpha=1;if(i%tickStep===0){ctx.fillStyle=colors.muted;ctx.fillText(shortTime(b.time),xx,volumeBottom+7);}});
+      const indexForTime = value => { const t=Date.parse(value),first=Date.parse(bars[0].time),last=Date.parse(bars[bars.length-1].time)+data.interval_seconds*1000;if(!Number.isFinite(t)||t<first||t>=last)return -1;let best=0,diff=Infinity;bars.forEach((b,i)=>{const d=Math.abs(Date.parse(b.time)-t);if(d<diff){diff=d;best=i;}});return best; };
+      data.pivots.forEach(p=>{const i=indexForTime(p.time);if(i<0||i>=bars.length)return;const xx=x(i),top=p.kind==="top",yy=top?Math.max(pad.top+18,y(p.price)-17):Math.min(priceBottom-18,y(p.price)+17),markerColor=top?colors.pivotTop:colors.pivotBottom;ctx.beginPath();ctx.moveTo(xx,yy-8);ctx.lineTo(xx+8,yy);ctx.lineTo(xx,yy+8);ctx.lineTo(xx-8,yy);ctx.closePath();if(top){ctx.strokeStyle=markerColor;ctx.lineWidth=2.5;ctx.stroke();ctx.fillStyle=markerColor;ctx.fillRect(xx-2,yy-2,4,4);ctx.lineWidth=1;}else{ctx.fillStyle=markerColor;ctx.fill();ctx.fillStyle=colors.bg;ctx.beginPath();ctx.arc(xx,yy,2.2,0,Math.PI*2);ctx.fill();}ctx.fillStyle=markerColor;ctx.font="500 11px system-ui";ctx.textAlign="center";ctx.textBaseline=top?"bottom":"top";ctx.fillText(p.label||(top?"顶部拐点":"底部拐点"),xx,top?yy-10:yy+10);});
+      data.trades.forEach(t=>{const i=indexForTime(t.time);if(i<0||i>=bars.length)return;const xx=x(i),yy=y(t.price),side=String(t.side).toLowerCase(),buy=side==="b"||side==="buy"||side.includes("买");ctx.fillStyle=buy?colors.buy:colors.sell;ctx.beginPath();if(buy){ctx.moveTo(xx,yy-12);ctx.lineTo(xx-6,yy-2);ctx.lineTo(xx+6,yy-2);}else{ctx.moveTo(xx,yy+12);ctx.lineTo(xx-6,yy+2);ctx.lineTo(xx+6,yy+2);}ctx.closePath();ctx.fill();ctx.font="11px system-ui";ctx.textAlign="center";ctx.textBaseline=buy?"bottom":"top";ctx.fillText(t.label||(buy?"买":"卖"),xx,buy?yy-14:yy+14);});
+      if(hoverIndex>=0&&hoverIndex<bars.length){const b=bars[hoverIndex],xx=x(hoverIndex);ctx.strokeStyle=colors.cross;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(xx,pad.top);ctx.lineTo(xx,volumeBottom);ctx.stroke();ctx.setLineDash([]);}
+      canvas._state={bars,start,x,y,priceBottom,volumeBottom,w,h};
+    }
+    function pointerX(event){const r=canvas.getBoundingClientRect();return event.clientX-r.left;}
+    canvas.addEventListener("pointermove",e=>{const s=canvas._state;if(!s)return;const px=pointerX(e);if(dragging){const slot=(s.w-pad.left-pad.right)/s.bars.length;end=Math.round(dragEnd-(px-dragX)/slot);end=Math.max(1,Math.min(data.bars.length,end));draw();return;}const i=Math.floor((px-pad.left)/(s.w-pad.left-pad.right)*s.bars.length);hoverIndex=Math.max(0,Math.min(s.bars.length-1,i));const b=s.bars[hoverIndex];tooltip.style.display="block";tooltip.innerHTML=`${shortTime(b.time)}<br>开 ${fmt(b.open)}　高 ${fmt(b.high)}　低 ${fmt(b.low)}　收 ${fmt(b.close)}<br>量 ${fmt(b.volume)}　持仓 ${fmt(b.open_interest)}`;tooltip.style.left=Math.min(s.w-tooltip.offsetWidth-8,Math.max(8,px+14))+"px";tooltip.style.top="10px";draw();});
+    canvas.addEventListener("pointerleave",()=>{if(!dragging){hoverIndex=-1;tooltip.style.display="none";draw();}});
+    canvas.addEventListener("pointerdown",e=>{dragging=true;dragX=pointerX(e);dragEnd=end;canvas.setPointerCapture(e.pointerId);});
+    canvas.addEventListener("pointerup",e=>{dragging=false;canvas.releasePointerCapture(e.pointerId);});
+    canvas.addEventListener("wheel",e=>{e.preventDefault();visible=Math.round(visible*(e.deltaY>0?1.18:.84));draw();},{passive:false});
+    new ResizeObserver(draw).observe(wrap);
+    if(apiUrl){setInterval(async()=>{try{const response=await fetch(apiUrl,{cache:"no-store"});if(response.ok)setData(await response.json());}catch(_error){}},2000);}
+    setData(initialData);
+  })();
+  </script>
+</body>
+</html>

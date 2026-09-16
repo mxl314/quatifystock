@@ -1,8 +1,17 @@
 from .base import Strategy
 from .engine import StrategyEngine
-from .pivot import FiveMinuteBottomPivot, FiveMinutePivotStrategy, PivotSignal
+from .pivot import (
+    BottomPivot,
+    FiveMinuteBottomPivot,
+    FiveMinutePivotStrategy,
+    PivotDetector,
+    PivotSignal,
+    PivotStrategy,
+    TopPivot,
+)
 
 __all__ = [
-    "FiveMinuteBottomPivot", "FiveMinutePivotStrategy", "PivotSignal",
-    "Strategy", "StrategyEngine",
+    "BottomPivot", "FiveMinuteBottomPivot", "FiveMinutePivotStrategy",
+    "PivotDetector", "PivotSignal", "PivotStrategy", "Strategy",
+    "StrategyEngine", "TopPivot",
 ]

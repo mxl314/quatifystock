@@ -17,12 +17,18 @@ from .core import (
 from .runtime import LiveRuntime, QuoteClient, ReplayRuntime
 from .services import BarBuilder, BarService, RiskLimits, RiskManager, TickStorageService, TimelineService, TradingEngine
 from .storage import SQLiteTickStore
-from .strategy import FiveMinutePivotStrategy, Strategy, StrategyEngine
+from .strategy import (
+    BottomPivot,
+    FiveMinutePivotStrategy,
+    PivotStrategy,
+    Strategy,
+    StrategyEngine,
+)
 
 __all__ = [
-    "Bar", "BarBuilder", "BarService", "CtpAdapter", "CtpConfig", "EsunnyAdapter", "Event", "EventBus",
+    "Bar", "BarBuilder", "BarService", "BottomPivot", "CtpAdapter", "CtpConfig", "EsunnyAdapter", "Event", "EventBus",
     "FiveMinutePivotStrategy", "LiveRuntime", "MarketTick", "Offset", "OrderRequest", "OrderStatus", "OrderType",
-    "QuoteClient", "QuoteConfig", "ReplayRuntime", "RiskLimits", "RiskManager", "Side", "SQLiteTickStore",
+    "PivotStrategy", "QuoteClient", "QuoteConfig", "ReplayRuntime", "RiskLimits", "RiskManager", "Side", "SQLiteTickStore",
     "Strategy", "StrategyEngine", "Tick", "TimeInForce", "TimelinePoint", "TimelineService",
     "TickStorageService", "TradingEngine", "V10Config",
 ]

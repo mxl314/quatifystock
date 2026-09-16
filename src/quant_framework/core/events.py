@@ -45,7 +45,10 @@ class EventBus:
         while True:
             event = self._queue.get()
             if event is None:
-                break
+                if self._queue.empty():
+                    break
+                self._queue.put(None)
+                continue
             self._dispatch(event)
 
     def _dispatch(self, event: Event) -> None:

@@ -62,7 +62,7 @@ class SQLiteTickStore:
         """)
         self._connection.commit()
 
-    def append(self, tick: Tick, *, received_at: datetime | None = None) -> None:
+    def append(self, tick: Tick, *, received_at: datetime | None = None) -> int:
         received_at = received_at or datetime.now(timezone.utc)
         timestamp = tick.timestamp.isoformat() if isinstance(tick.timestamp, datetime) else str(tick.timestamp)
         row = (
@@ -75,7 +75,8 @@ class SQLiteTickStore:
         with self._lock:
             self._pending.append(row)
             if len(self._pending) >= self.batch_size:
-                self._flush_unlocked()
+                return self._flush_unlocked()
+            return 0
 
     def flush(self) -> int:
         with self._lock:

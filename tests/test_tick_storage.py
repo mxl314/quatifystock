@@ -4,13 +4,44 @@ import unittest
 from contextlib import closing
 from pathlib import Path
 
+from quant_framework.core import Event, EventBus
 from quant_framework.core.models import Tick
 from quant_framework.adapters.mock import MockGateway, MockQuoteGateway
 from quant_framework.runtime import LiveRuntime
+from quant_framework.services.tick_storage import TickStorageService
 from quant_framework.storage import SQLiteTickStore
 
 
 class SQLiteTickStoreTests(unittest.TestCase):
+    def test_storage_service_uses_bounded_non_blocking_queue(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "market_ticks.sqlite3"
+            events = EventBus()
+            service = TickStorageService(
+                events,
+                SQLiteTickStore(path, "2026-09-16", batch_size=500),
+                flush_seconds=60,
+                queue_size=1,
+            )
+            first = Tick(
+                "DCE|F|P|2701", 10030, "2026-09-16 09:00:00.100",
+                total_volume=10,
+            )
+            second = Tick(
+                "DCE|F|P|2701", 10031, "2026-09-16 09:00:00.600",
+                total_volume=11,
+            )
+            events.publish(Event("tick", first))
+            events.publish(Event("tick", second))
+            self.assertEqual(service.queued_events, 1)
+            self.assertEqual(service.dropped_events, 1)
+            service.start()
+            service.close()
+            with closing(sqlite3.connect(path)) as connection:
+                count = connection.execute("SELECT COUNT(*) FROM ticks").fetchone()[0]
+            self.assertEqual(count, 1)
+            self.assertEqual(service.processed_events, 1)
+
     def test_one_contract_is_kept_together_across_trading_days(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "market_ticks.sqlite3"
