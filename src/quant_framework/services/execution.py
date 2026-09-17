@@ -71,6 +71,12 @@ class TradingEngine:
     def close_short(self, contract: str, price: float, volume: int, **kwargs) -> str:
         return self.submit(OrderRequest(contract, Side.BUY, Offset.CLOSE, volume, price, **kwargs))
 
+    def close_long_today(self, contract: str, price: float, volume: int, **kwargs) -> str:
+        return self.submit(OrderRequest(contract, Side.SELL, Offset.CLOSE_TODAY, volume, price, **kwargs))
+
+    def close_short_today(self, contract: str, price: float, volume: int, **kwargs) -> str:
+        return self.submit(OrderRequest(contract, Side.BUY, Offset.CLOSE_TODAY, volume, price, **kwargs))
+
     def cancel(self, client_order_id: str) -> None:
         order = self.orders[client_order_id]
         request_id = next(self._request_ids)
@@ -92,12 +98,18 @@ class TradingEngine:
     def _on_order(self, event: Event) -> None:
         data = event.data
         key = int(data.get("request_id", 0))
-        client_id = self._by_request.get(key) or self._by_reference.get(key)
+        reference = int(data.get("order_ref", 0) or 0)
+        order_id = int(data.get("order_id", 0) or 0)
+        client_id = (
+            self._by_request.get(key)
+            or self._by_reference.get(reference)
+            or self._by_order_id.get(order_id)
+        )
         if not client_id:
             return
         order = self.orders[client_id]
         previous = order.status
-        order.order_id = int(data.get("order_id", order.order_id))
+        order.order_id = order_id or order.order_id
         if order.order_id:
             self._by_order_id[order.order_id] = client_id
         order.system_no = str(data.get("system_no", order.system_no))

@@ -78,11 +78,10 @@ class OrderStorageService:
                 if event.type == "order.snapshot":
                     if not isinstance(event.data, Order):
                         raise TypeError("order.snapshot 事件数据必须是 Order")
-                    self.store.save_order(
+                    self.persisted_orders += self.store.save_order(
                         event.data, gateway=self.gateway, account=self.account,
                         trading_day=self.trading_day, event_time=event.created_at,
                     )
-                    self.persisted_orders += 1
                 elif event.type == "trade.normalized":
                     if not isinstance(event.data, dict):
                         raise TypeError("trade.normalized 事件数据必须是 dict")

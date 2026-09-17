@@ -40,6 +40,7 @@ def detect_pivots(
                     else signal.pivot.high_price
                 ),
                 confirmation_time=signal.confirmation.start_time.isoformat(),
+                confirmation_price=signal.confirmation.close_price,
                 kind=signal.kind,
                 label="底部拐点" if signal.kind == "bottom" else "顶部拐点",
             ))

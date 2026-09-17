@@ -3,8 +3,8 @@ md_bridge_library = "build/native/ctp_md_bridge.dll"
 td_bridge_library = "build/native/ctp_td_bridge.dll"
 
 # SimNow 第一套环境；盘中可用，具体时段以 SimNow 公告为准。
-md_front = "tcp://180.168.146.187:10211"
-td_front = "tcp://180.168.146.187:10201"
+md_front = "tcp://182.254.243.31:30011"
+td_front = "tcp://182.254.243.31:30001"
 broker_id = "9999"
 app_id = "simnow_client_test"
 auth_code = "0000000000000000"

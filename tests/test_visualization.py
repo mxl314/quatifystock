@@ -64,6 +64,27 @@ class VisualizationTests(unittest.TestCase):
         self.assertEqual(data.bars[0].volume, 6)
         self.assertEqual(data.trades[0].label, "买开")
 
+    def test_repository_replay_does_not_reopen_bar_for_late_tick(self):
+        path = Path(self.temporary.name) / "late-ticks.sqlite3"
+        with SQLiteTickStore(path, "2026-09-16") as store:
+            for timestamp, price, total_volume in (
+                ("2026-09-16 09:00:01", 100, 1),
+                ("2026-09-16 09:05:01", 110, 2),
+                ("2026-09-16 09:00:30", 999, 1),
+                ("2026-09-16 09:05:30", 111, 3),
+            ):
+                store.append(Tick(
+                    contract="DCE|F|P|2701", timestamp=timestamp,
+                    last_price=price, last_volume=1, total_volume=total_volume,
+                ))
+
+        data = SQLiteChartRepository(path).load(
+            "DCE|F|P|2701", 300, "2026-09-16",
+        )
+        self.assertEqual(len(data.bars), 2)
+        self.assertEqual(data.bars[0].high, 100)
+        self.assertEqual(data.bars[1].close, 111)
+
     def test_chart_marks_the_same_confirmed_bottom_pivot_as_strategy(self):
         bars = (
             ChartBar("2026-09-16T09:00:00", 99, 101, 98, 99, 1, 1000),
@@ -74,6 +95,8 @@ class VisualizationTests(unittest.TestCase):
         self.assertEqual(len(pivots), 1)
         self.assertEqual(pivots[0].time, "2026-09-16T09:05:00")
         self.assertEqual(pivots[0].price, 95)
+        self.assertEqual(pivots[0].confirmation_time, "2026-09-16T09:10:00")
+        self.assertEqual(pivots[0].confirmation_price, 102)
 
         unfinished = bars[:-1] + (
             ChartBar(
@@ -146,6 +169,31 @@ class VisualizationTests(unittest.TestCase):
         snapshot = feed.snapshot()
         self.assertEqual(len(snapshot.bars), 1)
         self.assertEqual(snapshot.bars[0].close, 100)
+
+    def test_live_chart_does_not_reopen_completed_bar_for_late_tick(self):
+        events = EventBus()
+        feed = LiveChartFeed(
+            events, "DCE|F|P|2701", "2026-09-16", 300, queue_size=10,
+        )
+        for timestamp, price, total_volume in (
+            ("2026-09-16 09:00:01", 100, 1),
+            ("2026-09-16 09:05:01", 110, 2),
+            ("2026-09-16 09:00:30", 999, 1),
+            ("2026-09-16 09:05:30", 111, 3),
+        ):
+            events.publish(Event("tick", Tick(
+                contract="DCE|F|P|2701", timestamp=timestamp,
+                last_price=price, last_volume=1, total_volume=total_volume,
+            )))
+        feed.start()
+        feed.close()
+
+        snapshot = feed.snapshot()
+        self.assertEqual(len(snapshot.bars), 2)
+        self.assertTrue(snapshot.bars[0].complete)
+        self.assertEqual(snapshot.bars[0].high, 100)
+        self.assertEqual(snapshot.bars[1].close, 111)
+        self.assertEqual(feed.late_tick_events, 1)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,10 @@ class CtpMarketGateway(MarketDataGateway):
     def __init__(self, event_sink: EventSink, config: CtpConfig) -> None:
         super().__init__(event_sink)
         self.config = config
+        # CTP depth-market-data callbacks may omit ExchangeID.  Keep the
+        # canonical contract supplied by the caller so upper layers never
+        # depend on gateway-specific or incomplete identifiers.
+        self._subscriptions: dict[str, str] = {}
         library = config.md_bridge_library.resolve()
         self._dll_dir_handle = os.add_dll_directory(str(library.parent)) if hasattr(os, "add_dll_directory") else None
         self._dll = ctypes.CDLL(str(library))
@@ -57,10 +61,12 @@ class CtpMarketGateway(MarketDataGateway):
     def subscribe(self, contract: str) -> None:
         instrument, _ = from_canonical(contract)
         self._check(self._dll.ctp_md_subscribe(self._handle, self._b(instrument)), "订阅")
+        self._subscriptions[instrument.lower()] = contract
 
     def unsubscribe(self, contract: str) -> None:
         instrument, _ = from_canonical(contract)
         self._check(self._dll.ctp_md_unsubscribe(self._handle, self._b(instrument)), "退订")
+        self._subscriptions.pop(instrument.lower(), None)
 
     def query_contracts(self) -> None:
         raise NotImplementedError("CTP 合约查询由交易接口提供")
@@ -74,7 +80,12 @@ class CtpMarketGateway(MarketDataGateway):
             elif kind == "gateway.error":
                 kind = "quote.error"
             if kind == "tick":
-                data["contract"] = to_canonical(data.pop("instrument"), data.pop("exchange"))
+                instrument = data.pop("instrument")
+                exchange = data.pop("exchange")
+                data["contract"] = self._subscriptions.get(
+                    instrument.lower(),
+                    to_canonical(instrument, exchange),
+                )
                 data = MarketTick(**data)
             self.emit(Event(kind, data))
         except Exception as exc:

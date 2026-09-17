@@ -1,6 +1,6 @@
 import unittest
 
-from quant_framework.core import Offset, OrderRequest, OrderStatus, Side
+from quant_framework.core import Event, Offset, OrderRequest, OrderStatus, Side
 from quant_framework.services import TradingEngine
 from quant_framework.adapters.mock import MockGateway
 from quant_framework.services import RiskLimits, RiskManager, RiskRejected
@@ -23,6 +23,15 @@ class TradingEngineTests(unittest.TestCase):
         engine.cancel(client_id)
         self.assertEqual(engine.orders[client_id].status, OrderStatus.CANCELLED)
 
+    def test_close_long_today_uses_close_today_offset(self):
+        engine = TradingEngine(lambda sink: MockGateway(sink, auto_fill=True))
+        engine.connect()
+        client_id = engine.close_long_today("SHFE|F|AG|2611", 16000, 1)
+        self.assertEqual(
+            engine.orders[client_id].request.offset,
+            Offset.CLOSE_TODAY,
+        )
+
     def test_risk_rejects_large_order(self):
         risk = RiskManager(RiskLimits(max_order_volume=1))
         engine = TradingEngine(lambda sink: MockGateway(sink), risk=risk)
@@ -30,7 +39,22 @@ class TradingEngineTests(unittest.TestCase):
         with self.assertRaises(RiskRejected):
             engine.submit(OrderRequest("ZCE|F|SR701", Side.BUY, Offset.OPEN, 2, 5000))
 
+    def test_order_callback_can_match_by_order_reference(self):
+        engine = TradingEngine(lambda sink: MockGateway(sink, auto_fill=False))
+        engine.connect()
+        client_id = engine.buy("SHFE|F|AG|2611", 16000, 1)
+
+        engine.events.publish(Event("order", {
+            "request_id": 0,
+            "order_ref": "1",
+            "order_id": 1,
+            "status": "filled",
+            "traded_volume": 1,
+        }))
+
+        self.assertEqual(engine.orders[client_id].status, OrderStatus.FILLED)
+        self.assertEqual(engine.orders[client_id].traded_volume, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
-

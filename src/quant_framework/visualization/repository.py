@@ -66,7 +66,7 @@ class SQLiteChartRepository:
                    upper_limit, lower_limit, total_volume, open_interest
               FROM ticks
              WHERE contract = ? AND trading_day = ?
-             ORDER BY exchange_timestamp, id
+             ORDER BY id
             """,
             (contract, trading_day),
         ).fetchall()

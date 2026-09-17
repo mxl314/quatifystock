@@ -37,6 +37,7 @@ class PivotMarker:
     time: str
     price: float
     confirmation_time: str
+    confirmation_price: float = 0.0
     kind: str = "bottom"
     label: str = "底部拐点"
 

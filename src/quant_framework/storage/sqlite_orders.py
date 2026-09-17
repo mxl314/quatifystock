@@ -96,7 +96,7 @@ class SQLiteOrderStore:
         account: str,
         trading_day: str,
         event_time: datetime,
-    ) -> None:
+    ) -> int:
         request = order.request
         timestamp = event_time.isoformat()
         reference = request.reference if request.reference is not None else order.request_id
@@ -126,17 +126,32 @@ class SQLiteOrderStore:
                     message=excluded.message,
                     updated_at=excluded.updated_at
             """, values)
-            self._connection.execute("""
-                INSERT INTO order_events (
-                    client_order_id, gateway, account, trading_day, order_id,
-                    status, traded_volume, error_code, message, event_time
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                order.client_order_id, gateway, account, trading_day, order.order_id,
-                order.status.value, order.traded_volume, order.error_code,
-                order.message, timestamp,
-            ))
+            event_state = (
+                order.order_id, order.status.value, order.traded_volume,
+                order.error_code, order.message,
+            )
+            previous_state = self._connection.execute("""
+                SELECT order_id, status, traded_volume, error_code, message
+                  FROM order_events
+                 WHERE client_order_id = ?
+                 ORDER BY id DESC
+                 LIMIT 1
+            """, (order.client_order_id,)).fetchone()
+            inserted = 0
+            if previous_state != event_state:
+                self._connection.execute("""
+                    INSERT INTO order_events (
+                        client_order_id, gateway, account, trading_day, order_id,
+                        status, traded_volume, error_code, message, event_time
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    order.client_order_id, gateway, account, trading_day,
+                    order.order_id, order.status.value, order.traded_volume,
+                    order.error_code, order.message, timestamp,
+                ))
+                inserted = 1
             self._connection.commit()
+            return inserted
 
     def save_trade(
         self,
@@ -149,11 +164,31 @@ class SQLiteOrderStore:
         with self._lock:
             before = self._connection.total_changes
             self._connection.execute("""
-                INSERT OR IGNORE INTO trades (
+                INSERT INTO trades (
                     gateway, account, trading_day, client_order_id,
                     trade_id, order_id, contract, trade_time, received_at,
                     side, offset, price, volume, fee, label
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(
+                    gateway, account, trading_day, trade_id,
+                    order_id, price, volume
+                ) DO UPDATE SET
+                    client_order_id=CASE
+                        WHEN excluded.client_order_id <> ''
+                        THEN excluded.client_order_id
+                        ELSE trades.client_order_id
+                    END,
+                    contract=CASE
+                        WHEN excluded.client_order_id <> ''
+                        THEN excluded.contract
+                        ELSE trades.contract
+                    END,
+                    trade_time=excluded.trade_time,
+                    received_at=excluded.received_at,
+                    side=excluded.side,
+                    offset=excluded.offset,
+                    fee=excluded.fee,
+                    label=excluded.label
             """, (
                 gateway, account, trading_day,
                 str(trade.get("client_order_id", "")),

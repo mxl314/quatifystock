@@ -75,8 +75,6 @@ def main() -> int:
     cfg = V10Config.from_toml(Path("config/esunny.toml"))
     if cfg.account != ACCOUNT or cfg.front_ip != SIM_FRONT or cfg.front_port != 6668:
         raise RuntimeError("账号或交易前置与已核对的模拟环境不一致，停止报单")
-    if not cfg.license_no and cfg.app_id == "Demo_TestCollect":
-        cfg = dataclasses.replace(cfg, license_no="Demo_TestCollect")
     cfg.assert_credentials()
     cfg = dataclasses.replace(cfg, live_trading=True)
     quote_cfg = QuoteConfig(Path("build/native/esunny_v10_quote_bridge.dll"))

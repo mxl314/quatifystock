@@ -19,18 +19,7 @@ def main() -> int:
     events: queue.Queue = queue.Queue()
     gateway = V10NativeGateway(events.put, config)
     try:
-        if config.license_no:
-            gateway.connect()
-        else:
-            # 此脚本仅测试登录；交易网关的常规连接仍要求 LicenseNo。
-            config.log_path.mkdir(parents=True, exist_ok=True)
-            rc = gateway._dll.es_connect(
-                gateway._handle,
-                gateway._b(config.front_ip), gateway._b(config.account),
-                gateway._b(config.password), gateway._b(config.app_id), b"",
-                gateway._b(config.log_path.resolve()), config.front_port,
-            )
-            gateway._check(rc, "空授权号登录")
+        gateway.connect()
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             try:

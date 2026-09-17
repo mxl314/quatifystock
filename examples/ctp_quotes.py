@@ -16,11 +16,13 @@ def main() -> None:
     gateway: CtpMarketGateway
 
     def on_event(event) -> None:
-        if event.type == "gateway.ready":
+        if event.type in {"ctp.md.connected", "gateway.login", "quote.ready"}:
+            print({"event": event.type, "data": event.data}, flush=True)
+        if event.type == "quote.ready":
             gateway.subscribe(args.contract)
             ready.set()
-        elif event.type in {"tick", "gateway.error"}:
-            print(event.data)
+        elif event.type in {"tick", "quote.error", "gateway.error"}:
+            print({"event": event.type, "data": event.data}, flush=True)
 
     gateway = CtpMarketGateway(on_event, CtpConfig.from_toml(args.config))
     try:

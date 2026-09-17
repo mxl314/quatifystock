@@ -22,7 +22,18 @@ class EsunnyConfigTests(unittest.TestCase):
                        side_effect=AssertionError("DPAPI must not be read")):
                 config = V10Config.from_toml(root / "esunny.toml")
             self.assertEqual(config.password, "local-only")
-            self.assertEqual(config.license_no, "")
+            self.assertEqual(config.license_no, "Demo_TestCollect")
+            config.assert_credentials()
+
+    def test_non_demo_app_still_requires_license(self):
+        config = V10Config(
+            bridge_library=Path("bridge.dll"),
+            front_ip="127.0.0.1", front_port=6668,
+            account="account", password="password", app_id="production-app",
+            license_no="",
+        )
+        with self.assertRaisesRegex(ValueError, "ESUNNY_LICENSE_NO"):
+            config.assert_credentials()
 
 
 if __name__ == "__main__":

@@ -35,7 +35,10 @@ $env:CTP_PASSWORD="你的SimNow密码"
 .\.venv\Scripts\python.exe examples\ctp_quotes.py 'DCE|F|P|2701' --config config\ctp.toml
 ```
 
-第一套环境的默认地址已经写入示例配置。CTP 行情登录也需要 SimNow 账号密码。
+第一套环境第一组的默认地址已经写入示例配置：交易前置
+`182.254.243.31:30001`、行情前置 `182.254.243.31:30011`。CTP
+行情登录也需要 SimNow 账号密码。SimNow 可能调整前置地址，连接异常时应以
+其官网“产品与服务”的环境介绍为准。
 
 ## 合约格式
 

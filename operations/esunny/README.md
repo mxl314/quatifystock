@@ -7,12 +7,12 @@
 | `esunny_sim_login_check.py` | 核对模拟账号登录回报 | 否 |
 | `collect_p2701_ticks.py` | 把 P2701 Tick 持续写入统一数据库 | 否 |
 | `esunny_sim_buy_latest_once.py` | 取新鲜最新成交价，买开 P2701 一手 | 是，最多一次 |
+| `esunny_sim_close_long_latest_once.py` | 核对持仓并取新鲜买一价，卖出平多 P2701 一手 | 是，最多一次 |
 | `esunny_sim_buy_five_minute_pivot.py` | 连续完整 5 分钟底拐点确认后买开 P2701 一手 | 是，最多一次 |
 
-登录检查可临时使用开发包的模拟测试授权值，不会把授权号保存回本机凭据：
+`Demo_TestCollect` 模拟环境在未配置 `LicenseNo` 时，会仅在运行内存中自动使用同名的开发测试授权值，不会把授权号保存回本机凭据。直接运行登录检查：
 
 ```powershell
-$env:ESUNNY_LICENSE_NO='Demo_TestCollect'
 python operations/esunny/esunny_sim_login_check.py
 ```
 

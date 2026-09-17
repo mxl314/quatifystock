@@ -44,6 +44,52 @@ class BarBuilderTests(unittest.TestCase):
         self.assertEqual((bar.open_price, bar.high_price, bar.low_price, bar.close_price), (100, 103, 100, 103))
         self.assertEqual(bar.volume, 5)
 
+    def test_completed_bar_is_not_reopened_by_late_tick(self):
+        builder = BarBuilder(60)
+        builder.update(Tick(
+            "DCE|F|P|2701", 100, "2026-09-07 14:00:30",
+            last_volume=1, total_volume=100,
+        ))
+        first = builder.update(Tick(
+            "DCE|F|P|2701", 101, "2026-09-07 14:01:01",
+            last_volume=1, total_volume=101,
+        ))
+        self.assertEqual(first.close_price, 100)
+
+        self.assertIsNone(builder.update(Tick(
+            "DCE|F|P|2701", 999, "2026-09-07 14:00:59",
+            last_volume=1, total_volume=100,
+        )))
+        second = builder.update(Tick(
+            "DCE|F|P|2701", 102, "2026-09-07 14:02:01",
+            last_volume=1, total_volume=102,
+        ))
+        self.assertEqual(
+            (second.open_price, second.high_price, second.low_price, second.close_price),
+            (101, 101, 101, 101),
+        )
+        self.assertEqual(builder.late_ticks, 1)
+
+    def test_out_of_order_tick_inside_open_bar_does_not_change_close(self):
+        builder = BarBuilder(60)
+        builder.update(Tick(
+            "DCE|F|P|2701", 103, "2026-09-07 14:00:30",
+            last_volume=2, total_volume=100,
+        ))
+        builder.update(Tick(
+            "DCE|F|P|2701", 99, "2026-09-07 14:00:20",
+            last_volume=1, total_volume=99,
+        ))
+        bar = builder.update(Tick(
+            "DCE|F|P|2701", 101, "2026-09-07 14:01:01",
+            last_volume=1, total_volume=101,
+        ))
+        self.assertEqual(
+            (bar.open_price, bar.high_price, bar.low_price, bar.close_price),
+            (99, 103, 99, 103),
+        )
+        self.assertEqual(bar.volume, 2)
+
 
 class TimelineTests(unittest.TestCase):
     def test_timeline_uses_incremental_volume(self):

@@ -79,8 +79,6 @@ def main() -> int:
     base_cfg = V10Config.from_toml(Path("config/esunny.toml"))
     if base_cfg.account != ACCOUNT or base_cfg.front_ip != FRONT or base_cfg.front_port != 6668:
         raise RuntimeError("配置不是已验证的模拟账号或模拟交易前置")
-    if not base_cfg.license_no and base_cfg.app_id == "Demo_TestCollect":
-        base_cfg = dataclasses.replace(base_cfg, license_no="Demo_TestCollect")
     base_cfg.assert_credentials()
     trade_cfg = dataclasses.replace(base_cfg, live_trading=True)
     quote_cfg = QuoteConfig(

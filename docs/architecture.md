@@ -21,6 +21,11 @@ strategy  ->  services  ->  core  <-  adapters
 
 易盛和 CTP 特有的合约编号、字符枚举、DLL 和 `ctypes` 调用不能泄漏到策略层。
 
+运行时按网关成对选择行情和交易适配器：`--gateway ctp` 时行情、交易都走
+CTP；`--gateway v10` 时行情、交易都走易盛。适配器必须在发布事件前转换为
+统一的 `Tick`、订单和成交模型，并保持统一合约号不变。策略、K线、SQLite
+存储和图表只消费这些统一事件，不判断底层平台。
+
 ## services
 
 - `TradingEngine`：委托生命周期和统一买卖接口。

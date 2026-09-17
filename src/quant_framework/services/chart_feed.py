@@ -41,7 +41,13 @@ class LiveChartFeed:
         self.dropped_events = 0
         self._bars = {bar.time: bar for bar in (initial.bars if initial else ())}
         self._trades = list(initial.trades if initial else ())
+        self._latest_start = max(self._bars, default=None)
+        self._first_tick_times = {
+            key: datetime.fromisoformat(key) for key in self._bars
+        }
+        self._last_tick_times = dict(self._first_tick_times)
         self._previous_total_volume: int | None = None
+        self.late_tick_events = 0
         event_bus.subscribe("tick", self._enqueue)
         event_bus.subscribe("trade", self._enqueue)
 
@@ -112,12 +118,25 @@ class LiveChartFeed:
         timestamp = tick_datetime(tick.timestamp)
         start = self._floor(timestamp).isoformat()
         with self._lock:
+            if self._latest_start is not None and start < self._latest_start:
+                self.late_tick_events += 1
+                return
+            previous = self._bars.get(start)
+            if previous is not None and previous.complete:
+                self.late_tick_events += 1
+                return
+            advanced = self._latest_start is not None and start > self._latest_start
+            if self._latest_start is None or advanced:
+                self._latest_start = start
             for bar_time, existing in tuple(self._bars.items()):
                 if bar_time < start and not existing.complete:
                     self._bars[bar_time] = replace(existing, complete=True)
-            previous = self._bars.get(start)
-            volume_delta = self._volume_delta(tick)
+            volume_delta = self._volume_delta(
+                tick, reset_on_decrease=advanced,
+            )
             if previous is None:
+                self._first_tick_times[start] = timestamp
+                self._last_tick_times[start] = timestamp
                 self._bars[start] = ChartBar(
                     time=start, open=tick.last_price, high=tick.last_price,
                     low=tick.last_price, close=tick.last_price,
@@ -125,10 +144,22 @@ class LiveChartFeed:
                     complete=False,
                 )
             else:
+                first_tick_time = self._first_tick_times.get(start, timestamp)
+                last_tick_time = self._last_tick_times.get(start, timestamp)
+                open_price = previous.open
+                close_price = previous.close
+                if timestamp < first_tick_time:
+                    first_tick_time = timestamp
+                    open_price = tick.last_price
+                if timestamp >= last_tick_time:
+                    last_tick_time = timestamp
+                    close_price = tick.last_price
+                self._first_tick_times[start] = first_tick_time
+                self._last_tick_times[start] = last_tick_time
                 self._bars[start] = ChartBar(
-                    time=start, open=previous.open,
+                    time=start, open=open_price,
                     high=max(previous.high, tick.last_price),
-                    low=min(previous.low, tick.last_price), close=tick.last_price,
+                    low=min(previous.low, tick.last_price), close=close_price,
                     volume=previous.volume + volume_delta,
                     open_interest=tick.open_interest,
                     complete=False,
@@ -164,11 +195,19 @@ class LiveChartFeed:
             seconds=elapsed - elapsed % self.interval_seconds,
         )
 
-    def _volume_delta(self, tick: Tick) -> int:
+    def _volume_delta(self, tick: Tick, *, reset_on_decrease: bool = False) -> int:
         previous = self._previous_total_volume
-        self._previous_total_volume = tick.total_volume
-        if tick.total_volume and previous is not None and tick.total_volume >= previous:
-            return tick.total_volume - previous
+        if tick.total_volume:
+            if previous is None:
+                self._previous_total_volume = tick.total_volume
+            elif tick.total_volume >= previous:
+                self._previous_total_volume = tick.total_volume
+                return tick.total_volume - previous
+            elif reset_on_decrease:
+                self._previous_total_volume = tick.total_volume
+                return max(0, tick.last_volume)
+            else:
+                return 0
         return max(0, tick.last_volume)
 
     @staticmethod

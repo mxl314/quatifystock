@@ -34,7 +34,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", help="配置文件；易盛默认 config/esunny.toml，CTP 默认 config/ctp.toml")
     parser.add_argument("--response-timeout", type=float, default=10.0, help="等待查询或委托回报的秒数")
     sub = parser.add_subparsers(dest="action", required=True)
-    for action in ("buy", "sell", "close-long", "close-short"):
+    for action in (
+        "buy", "sell", "close-long", "close-short",
+        "close-long-today", "close-short-today",
+    ):
         cmd = sub.add_parser(action)
         cmd.add_argument("--contract", required=True)
         cmd.add_argument("--price", required=True, type=float)
@@ -103,7 +106,10 @@ def main(argv: list[str] | None = None) -> int:
 
     def on_event(event: Event) -> None:
         _print_event(event)
-        if event.type in {"order", "fund", "position.end"}:
+        if event.type == "order" and isinstance(event.data, dict):
+            if event.data.get("status") in {"filled", "cancelled", "rejected"}:
+                response.set()
+        elif event.type in {"fund", "position.end"}:
             response.set()
         elif event.type == "position" and isinstance(event.data, dict) and event.data.get("last"):
             response.set()
@@ -123,7 +129,10 @@ def main(argv: list[str] | None = None) -> int:
 
     engine = TradingEngine(factory, event_bus=bus)
     order_storage = None
-    if args.action in {"buy", "sell", "close-long", "close-short"}:
+    if args.action in {
+        "buy", "sell", "close-long", "close-short",
+        "close-long-today", "close-short-today",
+    }:
         trading_day = args.trading_day or datetime.now().astimezone().date().isoformat()
         order_storage = OrderStorageService(
             bus, SQLiteOrderStore(args.database), gateway=args.gateway,
@@ -287,7 +296,9 @@ def _run_live(args) -> int:
                     heartbeat.update({
                         "chart_queue_size": chart_feed.queued_events,
                         "chart_dropped_events": chart_feed.dropped_events,
+                        "chart_late_tick_events": chart_feed.late_tick_events,
                     })
+                heartbeat["bar_late_ticks"] = runtime.bars.late_ticks
                 if runtime.tick_storage:
                     heartbeat.update({
                         "storage_queue_size": runtime.tick_storage.queued_events,

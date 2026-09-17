@@ -33,13 +33,24 @@ class V10Config:
         account = env.get("ESUNNY_ACCOUNT", local_raw.get("account", raw.get("account", "")))
         if encrypted and encrypted.get("account") != account:
             raise ValueError("本机凭据账号与易盛配置账号不一致")
+        app_id = env.get(
+            "ESUNNY_APP_ID", local_raw.get("app_id", raw.get("app_id", "")),
+        )
+        license_no = env.get(
+            "ESUNNY_LICENSE_NO",
+            local_raw.get(
+                "license_no", raw.get("license_no", encrypted.get("license_no", "")),
+            ),
+        )
+        if not license_no and app_id == "Demo_TestCollect":
+            license_no = "Demo_TestCollect"
         return cls(
             bridge_library=Path(raw["bridge_library"]),
             front_ip=raw["front_ip"], front_port=int(raw["front_port"]),
             account=account,
             password=env.get("ESUNNY_PASSWORD", local_raw.get("password", raw.get("password", encrypted.get("password", "")))),
-            app_id=env.get("ESUNNY_APP_ID", local_raw.get("app_id", raw.get("app_id", ""))),
-            license_no=env.get("ESUNNY_LICENSE_NO", local_raw.get("license_no", raw.get("license_no", encrypted.get("license_no", "")))),
+            app_id=app_id,
+            license_no=license_no,
             log_path=Path(raw.get("log_path", "logs")),
             live_trading=bool(raw.get("live_trading", False)),
         )
@@ -50,4 +61,4 @@ class V10Config:
             "ESUNNY_APP_ID": self.app_id, "ESUNNY_LICENSE_NO": self.license_no,
         }.items() if not value]
         if missing:
-            raise ValueError("缺少环境变量: " + ", ".join(missing))
+            raise ValueError("缺少易盛配置: " + ", ".join(missing))

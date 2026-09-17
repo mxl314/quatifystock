@@ -21,6 +21,8 @@ def tick_datetime(value: str | int | datetime) -> datetime:
 @dataclass(slots=True)
 class _WorkingBar:
     start: datetime
+    first_tick_time: datetime
+    last_tick_time: datetime
     open: float
     high: float
     low: float
@@ -38,25 +40,36 @@ class BarBuilder:
         self.interval_seconds = interval_seconds
         self._bars: dict[str, _WorkingBar] = {}
         self._total_volume: dict[str, int] = {}
+        self.late_ticks = 0
 
     def update(self, tick: Tick) -> Bar | None:
         timestamp = tick_datetime(tick.timestamp)
         start = self._floor(timestamp)
-        delta = self._volume_delta(tick)
         current = self._bars.get(tick.contract)
+        if current is not None and start < current.start:
+            self.late_ticks += 1
+            return None
+        advanced = current is not None and current.start < start
+        delta = self._volume_delta(tick, reset_on_decrease=advanced)
         completed = None
-        if current is not None and current.start != start:
+        if current is not None and current.start < start:
             completed = self._finish(tick.contract, current)
             current = None
         if current is None:
             self._bars[tick.contract] = _WorkingBar(
-                start, tick.last_price, tick.last_price, tick.last_price,
+                start, timestamp, timestamp,
+                tick.last_price, tick.last_price, tick.last_price,
                 tick.last_price, delta, tick.open_interest,
             )
         else:
+            if timestamp < current.first_tick_time:
+                current.first_tick_time = timestamp
+                current.open = tick.last_price
             current.high = max(current.high, tick.last_price)
             current.low = min(current.low, tick.last_price)
-            current.close = tick.last_price
+            if timestamp >= current.last_tick_time:
+                current.last_tick_time = timestamp
+                current.close = tick.last_price
             current.volume += delta
             current.open_interest = tick.open_interest
         return completed
@@ -71,11 +84,19 @@ class BarBuilder:
         elapsed = int((timestamp - origin).total_seconds())
         return origin + timedelta(seconds=elapsed - elapsed % self.interval_seconds)
 
-    def _volume_delta(self, tick: Tick) -> int:
+    def _volume_delta(self, tick: Tick, *, reset_on_decrease: bool = False) -> int:
         previous = self._total_volume.get(tick.contract)
-        self._total_volume[tick.contract] = tick.total_volume
-        if tick.total_volume and previous is not None and tick.total_volume >= previous:
-            return tick.total_volume - previous
+        if tick.total_volume:
+            if previous is None:
+                self._total_volume[tick.contract] = tick.total_volume
+            elif tick.total_volume >= previous:
+                self._total_volume[tick.contract] = tick.total_volume
+                return tick.total_volume - previous
+            elif reset_on_decrease:
+                self._total_volume[tick.contract] = tick.total_volume
+                return max(0, tick.last_volume)
+            else:
+                return 0
         return max(0, tick.last_volume)
 
     def _finish(self, contract: str, value: _WorkingBar) -> Bar:
@@ -98,6 +119,10 @@ class BarService:
         self.events = event_bus
         self.builders = [BarBuilder(interval) for interval in intervals]
         event_bus.subscribe("tick", self._on_tick)
+
+    @property
+    def late_ticks(self) -> int:
+        return sum(builder.late_ticks for builder in self.builders)
 
     def flush(self) -> None:
         for builder in self.builders:
