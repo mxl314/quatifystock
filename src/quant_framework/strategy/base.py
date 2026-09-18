@@ -37,6 +37,12 @@ class Strategy:
     def close_short(self, contract: str, price: float, volume: int, **kwargs) -> str:
         return self._engine().close_short(contract, price, volume, **kwargs)
 
+    def close_long_today(self, contract: str, price: float, volume: int, **kwargs) -> str:
+        return self._engine().close_long_today(contract, price, volume, **kwargs)
+
+    def close_short_today(self, contract: str, price: float, volume: int, **kwargs) -> str:
+        return self._engine().close_short_today(contract, price, volume, **kwargs)
+
     def _engine(self) -> TradingEngine:
         if self.engine is None:
             raise RuntimeError("策略尚未绑定交易引擎")

@@ -18,7 +18,7 @@ from .runtime import LiveRuntime
 from .services.chart_feed import LiveChartFeed
 from .services import OrderStorageService, TradingEngine
 from .storage import SQLiteOrderStore, SQLiteTickStore
-from .strategy import PivotStrategy, Strategy
+from .strategy import FuturesTrendStrategy, PivotStrategy, Strategy
 from .visualization import (
     ChartData,
     DatabaseChartProvider,
@@ -51,7 +51,9 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--contract", action="append", required=True,
                      help="订阅的统一合约号；可重复指定")
     run.add_argument("--strategy", action="append", required=True,
-                     help="pivot:周期秒数、five-minute-pivot 或 Python模块:策略类；可重复指定")
+                     help="futures-trend、pivot:周期秒数、five-minute-pivot 或 Python模块:策略类；可重复指定")
+    run.add_argument("--strategy-volume", type=int, default=1,
+                     help="内置策略每次开仓手数，默认 1")
     run.add_argument("--trading-day", required=True, help="Tick 归属交易日 YYYY-MM-DD")
     run.add_argument("--database", default="data/market_ticks.sqlite3")
     run.add_argument("--quote-config", default="config/quote.toml",
@@ -181,8 +183,9 @@ def _run_live(args) -> int:
     store = SQLiteTickStore(args.database, args.trading_day, batch_size=500)
     order_store = SQLiteOrderStore(args.database)
     strategy_intervals = tuple(
-        interval for spec in args.strategy
-        if (interval := _pivot_interval(spec)) is not None
+        interval
+        for spec in args.strategy
+        for interval in _builtin_intervals(spec)
     )
     bar_intervals = list(args.bar_interval or ())
     for interval in strategy_intervals:
@@ -204,7 +207,7 @@ def _run_live(args) -> int:
     strategy_instances: list[str] = []
     for index, spec in enumerate(args.strategy, 1):
         for instance_name, strategy in _load_strategies(
-            spec, args.contract, args.execute,
+            spec, args.contract, args.execute, args.strategy_volume,
         ):
             runtime_name = f"{instance_name}-{index}"
             runtime.add_strategy(runtime_name, strategy)
@@ -415,8 +418,16 @@ def _storage_account(args) -> str:
 
 
 def _load_strategies(
-    spec: str, contracts: list[str], execute: bool,
+    spec: str, contracts: list[str], execute: bool, volume: int = 1,
 ) -> tuple[tuple[str, Strategy], ...]:
+    if spec == "futures-trend":
+        return tuple(
+            (
+                f"{spec}:{contract}",
+                FuturesTrendStrategy(contract, volume=volume, execute=execute),
+            )
+            for contract in contracts
+        )
     pivot_interval = _pivot_interval(spec)
     if pivot_interval is not None:
         return tuple(
@@ -431,7 +442,7 @@ def _load_strategies(
     module_name, separator, attribute = spec.partition(":")
     if not separator or not module_name or not attribute:
         raise ValueError(
-            "策略格式应为 pivot:周期秒数、five-minute-pivot 或 Python模块:策略类",
+            "策略格式应为 futures-trend、pivot:周期秒数、five-minute-pivot 或 Python模块:策略类",
         )
     strategy_type = getattr(importlib.import_module(module_name), attribute)
     strategy = strategy_type()
@@ -453,6 +464,13 @@ def _pivot_interval(spec: str) -> int | None:
     if interval <= 0:
         raise ValueError("pivot 策略周期必须大于 0")
     return interval
+
+
+def _builtin_intervals(spec: str) -> tuple[int, ...]:
+    if spec == "futures-trend":
+        return (180, 3600)
+    interval = _pivot_interval(spec)
+    return (interval,) if interval is not None else ()
 
 
 if __name__ == "__main__":

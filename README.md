@@ -44,14 +44,18 @@ quant-framework --gateway v10 --config config/esunny.toml run `
 
 内置拐点策略支持任意正整数秒周期，格式为 `pivot:周期秒数`。例如一分钟使用 `--strategy pivot:60`，五分钟使用 `--strategy pivot:300`；旧名称 `five-minute-pivot` 等价于 `pivot:300`。策略所需K线周期会自动加入运行时，不必额外指定 `--bar-interval`。图表需要显示一分钟K线时，可增加 `--bar-interval 60`。底部拐点确认后产生买入信号，顶部拐点确认后产生卖出开仓信号；未指定 `--execute` 时只检测和展示信号。
 
+期货趋势策略使用 `--strategy futures-trend`；完整参数、信号、CTP 委托和运行限制见 [FuturesTrendStrategy 使用文档](docs/stategy/futures-trend-strategy.md)。
+
 CTP 使用同一入口，只需切换网关和配置：
 
 ```powershell
 quant-framework --gateway ctp --config config/ctp.toml run `
   --contract 'DCE|F|P|2701' `
-  --strategy five-minute-pivot `
+  --strategy futures-trend `
   --trading-day 2026-09-16
 ```
+
+以上命令默认只观察信号。发单安全锁和操作示例见独立的策略类文档。
 
 自定义策略使用 `Python模块:策略类`，该类必须继承 `Strategy` 且可无参数构造。只有显式增加 `--execute` 并设置对应网关的确认环境变量，策略才可发单。按 `Ctrl+C` 后，运行容器停止行情、排空事件并提交剩余 Tick。
 

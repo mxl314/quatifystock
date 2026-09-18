@@ -4,7 +4,8 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from quant_framework.cli import _load_strategies, _parser, main
+from quant_framework.cli import _builtin_intervals, _load_strategies, _parser, main
+from quant_framework.strategy import FuturesTrendStrategy
 
 
 class CliTests(unittest.TestCase):
@@ -23,6 +24,14 @@ class CliTests(unittest.TestCase):
         )
         self.assertEqual(len(loaded), 1)
         self.assertEqual(loaded[0][1].interval_seconds, 60)
+
+    def test_futures_trend_strategy_adds_three_minute_and_hourly_bars(self):
+        loaded = _load_strategies(
+            "futures-trend", ["DCE|F|P|2701"], False, 2,
+        )
+        self.assertIsInstance(loaded[0][1], FuturesTrendStrategy)
+        self.assertEqual(loaded[0][1].volume, 2)
+        self.assertEqual(_builtin_intervals("futures-trend"), (180, 3600))
 
     def test_ctp_gateway_is_available(self):
         args = _parser().parse_args([

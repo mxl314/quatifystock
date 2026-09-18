@@ -12,4 +12,6 @@ dist/
 logs/
 reports/
 .env
+config/ctp.local.toml
+config/esunny.local.toml
 v*_trader.zip
